@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Reanimatie Timer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Reanimatie">
+<meta name="theme-color" content="#0a0a0d">
+<meta name="mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0d;
+  --surface: rgba(255,255,255,0.05);
+  --surface2: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8e8ee;
+  --text2: #b0b0bc;
+  --text3: #7a7a88;
+  --accent: #30d158;
+  --red: #ff453a;
+  --mono: 'Roboto Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(48,209,88,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 80% 100%, rgba(48,209,88,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Init overlay ── */
+#init-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 40px;
+  padding-top: calc(40px + env(safe-area-inset-top));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.init-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.init-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.init-sub {
+  font-size: 15px;
+  color: var(--text2);
+  text-align: center;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.init-btn {
+  width: 100%;
+  max-width: 300px;
+  height: 58px;
+  border-radius: 18px;
+  border: none;
+  background: var(--accent);
+  color: #0a0a0d;
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.init-btn:active { transform: scale(0.97); opacity: 0.85; }
+
+.init-error {
+  font-size: 13px;
+  color: var(--red);
+  text-align: center;
+  line-height: 1.5;
+  display: none;
+}
+
+/* ── Timer ── */
+.timer-section {
+  padding: 40px 24px 20px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timer-display {
+  font-family: var(--mono);
+  font-size: 52px;
+  font-weight: 300;
+  letter-spacing: -1px;
+  color: var(--text);
+  line-height: 1;
+  transition: color 0.3s;
+  text-align: center;
+}
+
+.timer-display.running { color: var(--red); }
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  min-height: 20px;
+}
+
+.rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+
+.rec-dot.live {
+  background: var(--red);
+  animation: recpulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recpulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+.rec-text {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text2);
+  transition: color 0.3s;
+}
+
+.rec-text.live { color: var(--red); font-weight: 500; }
+
+/* ── Buttons ── */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.btn {
+  height: 54px;
+  border-radius: 16px;
+  border: none;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.1s, opacity 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important; }
+
+.btn-start { flex: 1; background: var(--accent); color: #0a0a0d; }
+.btn-stop  { flex: 1; background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+
+.btn-icon {
+  width: 54px;
+  flex-shrink: 0;
+  background: var(--surface);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  font-size: 20px;
+  border-radius: 16px;
+}
+
+/* ── Log ── */
+.log-section {
+  display: flex;
+  flex-direction: column;
+  max-height: 45vh;
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.log-header {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  padding: 0 24px 10px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.log-col-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.log-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.log-inner { padding: 0 24px 40px; }
+
+.log-entry {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--border);
+  animation: slidein 0.2s ease;
+}
+
+.log-entry:last-child { border-bottom: none; }
+
+@keyframes slidein {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.entry-ts {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  padding-top: 1px;
+  line-height: 1.55;
+}
+
+.entry-ts.interim { color: var(--text3); }
+
+.entry-text {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.entry-text.interim { color: var(--text2); font-style: italic; }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  gap: 12px;
+  text-align: center;
+}
+
+.empty-icon { font-size: 36px; opacity: 0.4; }
+.empty-label { font-size: 14px; color: var(--text3); line-height: 1.6; }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 24px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.icon-play { display: inline-block; width: 16px; height: 16px; fill: currentColor; vertical-align: -2px; }
+.icon-stop { display: inline-block; width: 14px; height: 14px; fill: currentColor; vertical-align: -1px; }
+</style>
+</head>
+<body>
+
+<!-- Init overlay: shown on first open, handles mic permission for iOS PWA -->
+<div id="init-overlay">
+  <div class="init-icon">🩺</div>
+  <div class="init-title">Reanimatie Timer</div>
+  <div class="init-sub">De app heeft toegang tot de microfoon nodig om handelingen te transcriberen.</div>
+  <button class="init-btn" id="init-btn">Geef toegang & open app</button>
+  <div class="init-error" id="init-error">
+    Microfoon geweigerd. Ga naar Instellingen → Safari → Microfoon en sta toegang toe, en heropen de app.
+  </div>
+</div>
+
+<!-- Main app (hidden until init done) -->
+<div id="main-app" style="display:none; flex-direction:column; flex:1;">
+
+  <div class="timer-section">
+    <div class="timer-display" id="timer">00:00:00</div>
+    <div class="rec-row">
+      <div class="rec-dot" id="rec-dot"></div>
+      <span class="rec-text" id="rec-text">Klaar om te starten</span>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-start" id="btn-start">
+      <svg class="icon-play" viewBox="0 0 16 16"><path d="M3 2.5l11 5.5-11 5.5V2.5z"/></svg>
+      Start
+    </button>
+    <button class="btn btn-stop" id="btn-stop" disabled>
+      <svg class="icon-stop" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="2"/></svg>
+      Stop
+    </button>
+    <button class="btn btn-icon" id="btn-reset" disabled aria-label="Reset" title="Reset">↺</button>
+    <button class="btn btn-icon" id="btn-export" disabled aria-label="Exporteer" title="Exporteer">↓</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="log-section">
+    <div class="log-header">
+      <div class="log-col-label">Tijd</div>
+      <div class="log-col-label">Handeling</div>
+    </div>
+    <div class="log-scroll">
+      <div class="log-inner" id="log-inner">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">🎙</div>
+          <div class="empty-label">Start de opname en spreek uw handelingen hardop uit. Elke zin krijgt automatisch een tijdstempel.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const overlay    = document.getElementById('init-overlay');
+  const initBtn    = document.getElementById('init-btn');
+  const initError  = document.getElementById('init-error');
+  const mainApp    = document.getElementById('main-app');
+  const elTimer    = document.getElementById('timer');
+  const elLog      = document.getElementById('log-inner');
+  const elRecDot   = document.getElementById('rec-dot');
+  const elRecText  = document.getElementById('rec-text');
+  const btnStart   = document.getElementById('btn-start');
+  const btnStop    = document.getElementById('btn-stop');
+  const btnReset   = document.getElementById('btn-reset');
+  const btnExport  = document.getElementById('btn-export');
+  const logScroll  = document.querySelector('.log-scroll');
+
+  let recognition  = null;
+  let isRunning    = false;
+  let entries      = [];
+  let interimRow   = null;
+  let interimTs    = null;
+  let lastMinute   = -1;
+  let audioCtx     = null;
+
+  // ── Audio ──
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function beep() {
+    try {
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  // ── Init overlay ──
+  initBtn.addEventListener('click', async function() {
+    initBtn.textContent = 'Even wachten…';
+    initBtn.disabled = true;
+    initError.style.display = 'none';
+
+    try {
+      // Request mic permission explicitly — this is the key iOS PWA fix
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately; we just needed the permission grant
+      stream.getTracks().forEach(t => t.stop());
+
+      // Init AudioContext in the same user gesture
+      initAudio();
+
+      // Show main app
+      overlay.style.display = 'none';
+      mainApp.style.display = 'flex';
+      startClock();
+
+    } catch(err) {
+      initError.style.display = 'block';
+      initBtn.textContent = 'Probeer opnieuw';
+      initBtn.disabled = false;
+    }
+  });
+
+  // ── Clock ──
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function nowLabel() {
+    const d = new Date();
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  function nowLabelFull() {
+    const d = new Date();
+    const cs = Math.floor(d.getMilliseconds() / 10);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '.' + pad(cs);
+  }
+
+  function tick() {
+    elTimer.textContent = isRunning ? nowLabelFull() : nowLabel();
+    if (isRunning) {
+      const mins = new Date().getMinutes();
+      if (mins !== lastMinute) {
+        if (lastMinute !== -1) beep();
+        lastMinute = mins;
+      }
+    }
+  }
+
+  function startClock() {
+    tick();
+    setInterval(tick, 30);
+  }
+
+  // ── Log helpers ──
+  function getEmptyEl() { return document.getElementById('empty-state'); }
+
+  function removeEmpty() {
+    const el = getEmptyEl();
+    if (el) el.remove();
+  }
+
+  function scrollBottom() {
+    logScroll.scrollTop = logScroll.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function addFinal(text) {
+    if (!text.trim()) return;
+    const ts = interimTs !== null ? interimTs : nowLabel();
+    entries.push({ ts, text });
+    if (interimRow) { interimRow.remove(); interimRow = null; interimTs = null; }
+    removeEmpty();
+    const row = document.createElement('div');
+    row.className = 'log-entry';
+    row.innerHTML = '<div class="entry-ts">' + ts + '</div><div class="entry-text">' + escapeHtml(text) + '</div>';
+    elLog.appendChild(row);
+    scrollBottom();
+  }
+
+  function updateInterim(text) {
+    if (!text.trim()) return;
+    removeEmpty();
+    if (!interimRow) {
+      interimTs = nowLabel();
+      interimRow = document.createElement('div');
+      interimRow.className = 'log-entry';
+      elLog.appendChild(interimRow);
+    }
+    interimRow.innerHTML = '<div class="entry-ts interim">' + interimTs + '</div><div class="entry-text interim">' + escapeHtml(text) + '</div>';
+    scrollBottom();
+  }
+
+  // ── Speech ──
+  function startRecognition() {
+    if (!SpeechRecognition) return;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'nl-NL';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = function(e) {
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var r = e.results[i];
+        if (r.isFinal) addFinal(r[0].transcript.trim());
+        else interim += r[0].transcript;
+      }
+      if (interim) updateInterim(interim);
+    };
+
+    recognition.onerror = function(e) {
+      if (e.error === 'no-speech') return;
+      console.warn('Speech error:', e.error);
+    };
+
+    recognition.onend = function() {
+      if (isRunning) {
+        setTimeout(function() {
+          if (isRunning) {
+            try { recognition.start(); } catch(err) {}
+          }
+        }, 200);
+      }
+    };
+
+    try { recognition.start(); } catch(err) {}
+  }
+
+  // ── Button handlers ──
+  btnStart.addEventListener('click', function() {
+    if (isRunning) return;
+    isRunning = true;
+    lastMinute = new Date().getMinutes();
+    initAudio();
+    startRecognition();
+    elTimer.classList.add('running');
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    btnReset.disabled = true;
+    btnExport.disabled = true;
+    elRecDot.classList.add('live');
+    elRecText.classList.add('live');
+    elRecText.textContent = 'REC · spreek handelingen hardop uit';
+  });
+
+  btnStop.addEventListener('click', function() {
+    if (!isRunning) return;
+    isRunning = false;
+    lastMinute = -1;
+    if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
+    if (interimRow) { interimRow.remove(); interimRow = null; interimTs = null; }
+    elTimer.classList.remove('running');
+    btnStop.disabled = true;
+    btnStart.disabled = false;
+    btnStart.innerHTML = '<svg class="icon-play" viewBox="0 0 16 16"><path d="M3 2.5l11 5.5-11 5.5V2.5z"/></svg> Hervatten';
+    elRecDot.classList.remove('live');
+    elRecText.classList.remove('live');
+    elRecText.textContent = 'Gestopt · ' + entries.length + ' handeling' + (entries.length !== 1 ? 'en' : '') + ' geregistreerd';
+    if (entries.length > 0) { btnReset.disabled = false; btnExport.disabled = false; }
+  });
+
+  btnReset.addEventListener('click', function() {
+    if (isRunning) return;
+    if (!confirm('Alles wissen en opnieuw beginnen?')) return;
+    entries = [];
+    interimRow = null;
+    interimTs = null;
+    elLog.innerHTML = '';
+    var empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.id = 'empty-state';
+    empty.innerHTML = '<div class="empty-icon">🎙</div><div class="empty-label">Start de opname en spreek uw handelingen hardop uit. Elke zin krijgt automatisch een tijdstempel.</div>';
+    elLog.appendChild(empty);
+    btnStart.innerHTML = '<svg class="icon-play" viewBox="0 0 16 16"><path d="M3 2.5l11 5.5-11 5.5V2.5z"/></svg> Start';
+    elRecText.textContent = 'Klaar om te starten';
+    btnReset.disabled = true;
+    btnExport.disabled = true;
+  });
+
+  btnExport.addEventListener('click', function() {
+    if (!entries.length) return;
+    var content = 'Reanimatie logboek\nDatum: ' + new Date().toLocaleDateString('nl-NL') + '\n\n';
+    content += 'TIJD\t\tHANDELING\n';
+    content += '────────────────────────────────────────\n';
+    content += entries.map(function(e) { return e.ts + '\t\t' + e.text; }).join('\n');
+    var blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'reanimatie-' + new Date().toISOString().slice(0,10) + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+});
+</script>
+</body>
+</html>
